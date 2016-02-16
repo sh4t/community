@@ -1,0 +1,30 @@
+{
+	"data": {
+		"type": "vm",
+		"hostname": "host.domain.tld",
+		"os": "Ubuntu 14.04 LTS",
+		"architecture": "x86_64",
+		"resources": {
+			"cpu_count": "2",
+			"cpu_freq": "2.4GHz",
+			"memory": "1GB",
+			"storage": "10GB",
+			"disk_type": "ssd",
+			"hypervisor": "kvm"
+		},
+		"ip_addresses": {
+			"primary_ipv4": "10.17.2.6",
+			"primary_ipv6": "2600:dead:beef:0::10",
+			"ipv4": ["1.2.3.4","2.3.4.5"],
+			"ipv6": ["2600:dead:beef:0::11","2600:dead:beef:0::12"]
+		},
+		"provider": {
+			"name": "amazon",
+			"website": "aws.amazon.com"
+		},
+		"sensors": [
+			{"name": "kippo", "ports": [22, 2222] },
+			{"name": "dionaea",	"ports": [19, 21, 23, 25, 80, 443] }
+		]
+	}
+}
