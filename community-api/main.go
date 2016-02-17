@@ -14,6 +14,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 
 	"github.com/sh4t/community/host"
+	"github.com/sh4t/community/errs"
 )
 
 type HostRepo struct {
@@ -73,31 +74,7 @@ func (r *HostRepo) Delete(id string) error {
 	return nil
 }
 
-// Errors, error support from json-api stuff
 
-type Errors struct {
-	Errors []*Error `json:"errors"`
-}
-
-type Error struct {
-	Id     string `json:"id"`
-	Status int    `json:"status"`
-	Title  string `json:"title"`
-	Detail string `json:"detail"`
-}
-
-func WriteError(w http.ResponseWriter, err *Error) {
-	w.Header().Set("Content-Type", "application/vnd.api+json")
-	w.WriteHeader(err.Status)
-	json.NewEncoder(w).Encode(Errors{[]*Error{err}})
-}
-
-var (
-	ErrBadRequest           = &Error{"bad_request", 400, "Bad request", "Request body is not well-formed. It must be JSON."}
-	ErrNotAcceptable        = &Error{"not_acceptable", 406, "Not Acceptable", "Accept header must be set to 'application/vnd.api+json'."}
-	ErrUnsupportedMediaType = &Error{"unsupported_media_type", 415, "Unsupported Media Type", "Content-Type header must be set to: 'application/vnd.api+json'."}
-	ErrInternalServer       = &Error{"internal_server_error", 500, "Internal Server Error", "Something went wrong."}
-)
 
 // Conceptually this is middleware..
 // I still have a hard time with the term "middleware"
@@ -107,7 +84,7 @@ func recoverHandler(next http.Handler) http.Handler {
 		defer func() {
 			if err := recover(); err != nil {
 				log.Printf("panic: %+v", err)
-				WriteError(w, ErrInternalServer)
+				errs.WriteError(w, errs.ErrInternalServer)
 			}
 		}()
 
@@ -131,7 +108,7 @@ func loggingHandler(next http.Handler) http.Handler {
 func acceptHandler(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Accept") != "application/vnd.api+json" {
-			WriteError(w, ErrNotAcceptable)
+			errs.WriteError(w, errs.ErrNotAcceptable)
 			return
 		}
 
@@ -144,7 +121,7 @@ func acceptHandler(next http.Handler) http.Handler {
 func contentTypeHandler(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Content-Type") != "application/vnd.api+json" {
-			WriteError(w, ErrUnsupportedMediaType)
+			errs.WriteError(w, errs.ErrUnsupportedMediaType)
 			return
 		}
 
@@ -163,7 +140,7 @@ func bodyHandler(v interface{}) func(http.Handler) http.Handler {
 			err := json.NewDecoder(r.Body).Decode(val)
 
 			if err != nil {
-				WriteError(w, ErrBadRequest)
+				errs.WriteError(w, errs.ErrBadRequest)
 				return
 			}
 
