@@ -12,60 +12,16 @@ import (
 	"github.com/justinas/alice"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
+
+	"github.com/sh4t/community/host"
 )
-
-// Definte what a host is:
-type Sensor struct {
-	Name			string	`json:"name"`
-	Ports			[]int	`json:"ports"`
-}
-type Host struct {
-	Id       		bson.ObjectId `json:"id,omitempty" bson:"_id,omitempty"`
-	CreatedAt		time.Time	`json:"created"`
-	ModifiedAt		time.Time	`json:"modified"`
-	Hostname     	string	`json:"hostname"`
-	HostType		string	`json:"type"`
-	HostOs			string	`json:"os"`
-	HostArch		string	`json:"architecture"`
-
-	Specs			struct	{
-		CpuCount	string	`json:"cpu_count"`
-		CpuFreq		string	`json:"cpu_freq"`
-		Memory		string	`json:"memory"`
-		Storage		string	`json:"storage"`
-		DiskType	string	`json:"disk_type"`
-		Hypervisor	string	`json:"hypervisor"`
-	} `json:"resources"`
-	
-	Ips 			struct	{
-		Ipv4		string	`json:"primary_ipv4"`
-		Ipv6		string	`json:"primary_ipv6,omitempty"`
-		AddIpv4		[]string	`json:"ipv4"`
-		AddIpv6		[]string	`json:"ipv6"`
-	} `json:"ip_addresses"`
-
-	Provider			struct	{
-		Name 			string	`json:"name"`
-		Website			string	`json:"website,omitempty"`
-	} `json:"provider"`
-
-	Sensors			[]Sensor `json:"sensors"`
-}
-
-type HostsCollection struct {
-	Data []Host `json:"data"`
-}
-
-type HostResource struct {
-	Data Host `json:"data"`
-}
 
 type HostRepo struct {
 	coll *mgo.Collection
 }
 
-func (r *HostRepo) All() (HostsCollection, error) {
-	result := HostsCollection{[]Host{}}
+func (r *HostRepo) All() (host.HostsCollection, error) {
+	result := host.HostsCollection{[]host.Host{}}
 	err := r.coll.Find(nil).All(&result.Data)
 	if err != nil {
 		return result, err
@@ -74,8 +30,8 @@ func (r *HostRepo) All() (HostsCollection, error) {
 	return result, nil
 }
 
-func (r *HostRepo) Find(id string) (HostResource, error) {
-	result := HostResource{}
+func (r *HostRepo) Find(id string) (host.HostResource, error) {
+	result := host.HostResource{}
 	err := r.coll.FindId(bson.ObjectIdHex(id)).One(&result.Data)
 	if err != nil {
 		return result, err
@@ -84,7 +40,7 @@ func (r *HostRepo) Find(id string) (HostResource, error) {
 	return result, nil
 }
 
-func (r *HostRepo) Create(host *Host) error {
+func (r *HostRepo) Create(host *host.Host) error {
 	id := bson.NewObjectId()
 	host.CreatedAt = time.Now()
 	host.ModifiedAt = time.Now()
@@ -98,7 +54,7 @@ func (r *HostRepo) Create(host *Host) error {
 	return nil
 }
 
-func (r *HostRepo) Update(host *Host) error {
+func (r *HostRepo) Update(host *host.Host) error {
 	host.ModifiedAt = time.Now()
 	err := r.coll.UpdateId(host.Id, host)
 	if err != nil {
@@ -253,7 +209,7 @@ func (c *appContext) hostHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) createHostHandler(w http.ResponseWriter, r *http.Request) {
-	body := context.Get(r, "body").(*HostResource)
+	body := context.Get(r, "body").(*host.HostResource)
 	repo := HostRepo{c.db.C("hosts")}
 	err := repo.Create(&body.Data)
 	if err != nil {
@@ -267,7 +223,7 @@ func (c *appContext) createHostHandler(w http.ResponseWriter, r *http.Request) {
 
 func (c *appContext) updateHostHandler(w http.ResponseWriter, r *http.Request) {
 	params := context.Get(r, "params").(httprouter.Params)
-	body := context.Get(r, "body").(*HostResource)
+	body := context.Get(r, "body").(*host.HostResource)
 	body.Data.Id = bson.ObjectIdHex(params.ByName("id"))
 	repo := HostRepo{c.db.C("hosts")}
 	err := repo.Update(&body.Data)
@@ -336,9 +292,9 @@ func main() {
 	commonHandlers := alice.New(context.ClearHandler, loggingHandler, recoverHandler, acceptHandler)
 	router := NewRouter()
 	router.Get("/hosts/:id", commonHandlers.ThenFunc(appC.hostHandler))
-	router.Put("/hosts/:id", commonHandlers.Append(contentTypeHandler, bodyHandler(HostResource{})).ThenFunc(appC.updateHostHandler))
+	router.Put("/hosts/:id", commonHandlers.Append(contentTypeHandler, bodyHandler(host.HostResource{})).ThenFunc(appC.updateHostHandler))
 	router.Delete("/hosts/:id", commonHandlers.ThenFunc(appC.deleteHostHandler))
 	router.Get("/hosts", commonHandlers.ThenFunc(appC.hostsHandler))
-	router.Post("/hosts", commonHandlers.Append(contentTypeHandler, bodyHandler(HostResource{})).ThenFunc(appC.createHostHandler))
+	router.Post("/hosts", commonHandlers.Append(contentTypeHandler, bodyHandler(host.HostResource{})).ThenFunc(appC.createHostHandler))
 	http.ListenAndServe(":8080", router)
 }
