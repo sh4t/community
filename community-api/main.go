@@ -75,10 +75,7 @@ func (r *HostRepo) Delete(id string) error {
 }
 
 
-
-// Conceptually this is middleware..
-// I still have a hard time with the term "middleware"
-
+// all in the middle..
 func recoverHandler(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
@@ -89,6 +86,26 @@ func recoverHandler(next http.Handler) http.Handler {
 		}()
 
 		next.ServeHTTP(w, r)
+	}
+
+	return http.HandlerFunc(fn)
+}
+
+// cors is a bit annoying, but here is an attempt to resolve for community-ui angular love.
+func corsHandler(next http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+
+		if origin := r.Header.Get("Origin"); origin != "" {
+		    w.Header().Set("Access-Control-Allow-Origin", origin)
+		    w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		    w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+		}
+		
+	    if r.Method == "OPTIONS" {
+	        return
+	    }
+
+	    next.ServeHTTP(w, r)
 	}
 
 	return http.HandlerFunc(fn)
@@ -130,6 +147,8 @@ func contentTypeHandler(next http.Handler) http.Handler {
 
 	return http.HandlerFunc(fn)
 }
+
+
 
 func bodyHandler(v interface{}) func(http.Handler) http.Handler {
 	t := reflect.TypeOf(v)
@@ -266,7 +285,7 @@ func main() {
 	session.SetMode(mgo.Monotonic, true)
 
 	appC := appContext{session.DB("community")}
-	commonHandlers := alice.New(context.ClearHandler, loggingHandler, recoverHandler, acceptHandler)
+	commonHandlers := alice.New(context.ClearHandler, loggingHandler, recoverHandler, corsHandler, acceptHandler)
 	router := NewRouter()
 	router.Get("/hosts/:id", commonHandlers.ThenFunc(appC.hostHandler))
 	router.Put("/hosts/:id", commonHandlers.Append(contentTypeHandler, bodyHandler(host.HostResource{})).ThenFunc(appC.updateHostHandler))
