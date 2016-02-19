@@ -72,9 +72,6 @@ func (r *HostRepo) Delete(id string) error {
 	return nil
 }
 
-
-
-
 // handlers
 
 type appContext struct {
