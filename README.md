@@ -16,3 +16,11 @@ THanks to all of the various [make a restful api](https://thenewstack.io/make-a-
 #### useful links
 
 * [json-api](http://jsonapi.org/) - is where I am trying to get the infos for making this not suck entirely.
+
+## Changelog
+
+#### 'divide' => [0.0.2] - 2016-02-18
+Merging the branch 'divide' into master to become version 0.0.2 as unofficially official as I can.  Basically, I decided to spend some time splitting up the single file api into a few more manageable packages.  Not entirely sure they are grouped logically as I still have some Host details in community-api/main.go and such.
+- Added 'corsHandler'
+- Modify Host data
+ 
