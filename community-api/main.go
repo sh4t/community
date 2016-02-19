@@ -2,9 +2,7 @@ package main
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
-	"reflect"
 	"time"
 
 	"github.com/gorilla/context"
@@ -14,7 +12,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 
 	"github.com/sh4t/community/host"
-	"github.com/sh4t/community/errs"
+	"github.com/sh4t/community/mdw"
 )
 
 type HostRepo struct {
@@ -75,105 +73,7 @@ func (r *HostRepo) Delete(id string) error {
 }
 
 
-// all in the middle..
-func recoverHandler(next http.Handler) http.Handler {
-	fn := func(w http.ResponseWriter, r *http.Request) {
-		defer func() {
-			if err := recover(); err != nil {
-				log.Printf("panic: %+v", err)
-				errs.WriteError(w, errs.ErrInternalServer)
-			}
-		}()
 
-		next.ServeHTTP(w, r)
-	}
-
-	return http.HandlerFunc(fn)
-}
-
-// cors is a bit annoying, but here is an attempt to resolve for community-ui angular love.
-func corsHandler(next http.Handler) http.Handler {
-	fn := func(w http.ResponseWriter, r *http.Request) {
-
-		if origin := r.Header.Get("Origin"); origin != "" {
-		    w.Header().Set("Access-Control-Allow-Origin", origin)
-		    w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-		    w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
-		}
-		
-	    if r.Method == "OPTIONS" {
-	        return
-	    }
-
-	    next.ServeHTTP(w, r)
-	}
-
-	return http.HandlerFunc(fn)
-}
-
-func loggingHandler(next http.Handler) http.Handler {
-	fn := func(w http.ResponseWriter, r *http.Request) {
-		t1 := time.Now()
-		next.ServeHTTP(w, r)
-		t2 := time.Now()
-		log.Printf("[%s] %q %v\n", r.Method, r.URL.String(), t2.Sub(t1))
-	}
-
-	return http.HandlerFunc(fn)
-}
-
-func acceptHandler(next http.Handler) http.Handler {
-	fn := func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("Accept") != "application/vnd.api+json" {
-			errs.WriteError(w, errs.ErrNotAcceptable)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	}
-
-	return http.HandlerFunc(fn)
-}
-
-func contentTypeHandler(next http.Handler) http.Handler {
-	fn := func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("Content-Type") != "application/vnd.api+json" {
-			errs.WriteError(w, errs.ErrUnsupportedMediaType)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	}
-
-	return http.HandlerFunc(fn)
-}
-
-
-
-func bodyHandler(v interface{}) func(http.Handler) http.Handler {
-	t := reflect.TypeOf(v)
-
-	m := func(next http.Handler) http.Handler {
-		fn := func(w http.ResponseWriter, r *http.Request) {
-			val := reflect.New(t).Interface()
-			err := json.NewDecoder(r.Body).Decode(val)
-
-			if err != nil {
-				errs.WriteError(w, errs.ErrBadRequest)
-				return
-			}
-
-			if next != nil {
-				context.Set(r, "body", val)
-				next.ServeHTTP(w, r)
-			}
-		}
-
-		return http.HandlerFunc(fn)
-	}
-
-	return m
-}
 
 // handlers
 
@@ -285,12 +185,12 @@ func main() {
 	session.SetMode(mgo.Monotonic, true)
 
 	appC := appContext{session.DB("community")}
-	commonHandlers := alice.New(context.ClearHandler, loggingHandler, recoverHandler, corsHandler, acceptHandler)
+	commonHandlers := alice.New(context.ClearHandler, mdw.LoggingHandler, mdw.RecoverHandler, mdw.CorsHandler, mdw.AcceptHandler)
 	router := NewRouter()
 	router.Get("/hosts/:id", commonHandlers.ThenFunc(appC.hostHandler))
-	router.Put("/hosts/:id", commonHandlers.Append(contentTypeHandler, bodyHandler(host.HostResource{})).ThenFunc(appC.updateHostHandler))
+	router.Put("/hosts/:id", commonHandlers.Append(mdw.ContentTypeHandler, mdw.BodyHandler(host.HostResource{})).ThenFunc(appC.updateHostHandler))
 	router.Delete("/hosts/:id", commonHandlers.ThenFunc(appC.deleteHostHandler))
 	router.Get("/hosts", commonHandlers.ThenFunc(appC.hostsHandler))
-	router.Post("/hosts", commonHandlers.Append(contentTypeHandler, bodyHandler(host.HostResource{})).ThenFunc(appC.createHostHandler))
+	router.Post("/hosts", commonHandlers.Append(mdw.ContentTypeHandler, mdw.BodyHandler(host.HostResource{})).ThenFunc(appC.createHostHandler))
 	http.ListenAndServe(":8080", router)
 }
