@@ -2,6 +2,8 @@ community
 ===
 An approach to developing simplified API(s) as a boilerplate in Golang leveraging MongoDB and JSON-API.
 
+[![Build Status](https://travis-ci.org/sh4t/community.svg?branch=master)](https://travis-ci.org/sh4t/community)
+
 #### why?
 I have spent the last sixteen months struggling to develop services using Golang in a way that seems successful.  Having some measureable amount of success or being successful includes having repeatable steps and a foundation for progress.  I have developed, refactored, deleted, and started over more times than I can count and now I am committing myself to going in one direction, forward.
 
