@@ -10,13 +10,9 @@ install:
   - go get github.com/gorilla/context
   - go get github.com/julienschmidt/httprouter
   - go get github.com/justinas/alice
+  - go get github.com/sh4t/community
   - go get gopkg.in/mgo.v2
   - go get gopkg.in/mgo.v2/bson
-  - go get github.com/sh4t/community
 
 script:
   - go test ./...
-
-matrix:
-  allow_failures:
-    - go: tip
