@@ -22,3 +22,5 @@ _testmain.go
 *.exe
 *.test
 *.prof
+
+community-api/community-api
